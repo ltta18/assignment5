@@ -7,13 +7,18 @@ import { Card, Button, Icon } from 'react-native-elements';
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [articles, setArticles] = useState([]);
+  const [pageNumber, setPageNumber] = useState(1);
 
   const getNews = async () => {
     const response = await fetch(
-      'https://newsapi.org/v2/top-headlines?country=us&apiKey=d05ce933a10240f18baec1e2cb2da323'
+      `https://newsapi.org/v2/top-headlines?country=us&apiKey=6eec2f7fe6cd4c40a3fef8f33f5778fe&page=${pageNumber}`
     );
     const jsonData = await response.json();
-    setArticles(jsonData.articles);
+    const newArticleList = filterForUniqueArticles(
+      articles.concat(jsonData.articles)
+    );
+    setArticles(newArticleList);
+    setPageNumber(pageNumber + 1);
     setLoading(false);
   };
 
@@ -40,6 +45,19 @@ export default function App() {
     );
   };
 
+  const filterForUniqueArticles = arr => {
+    const cleaned = [];
+    arr.forEach(itm => {
+      let unique = true;
+      cleaned.forEach(itm2 => {
+        const isEqual = JSON.stringify(itm) === JSON.stringify(itm2);
+        if (isEqual) unique = false;
+      });
+      if (unique) cleaned.push(itm);
+    });
+    return cleaned;
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -53,10 +71,16 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safeView}>
       <View style={styles.container}>
+        <View style={styles.row}>
+          <Text style={styles.label}>Articles Count:</Text>
+          <Text style={styles.info}>{articles.length}</Text>
+        </View>
         <FlatList
           data={articles}
           renderItem={renderArticleItem}
           keyExtractor={item => item.title}
+          onEndReached={getNews} 
+          onEndReachedThreshold={1}
         />
       </View>
     </SafeAreaView>
