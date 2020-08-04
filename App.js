@@ -1,7 +1,8 @@
 import React, { 
   useState, 
   useEffect, 
-  useMemo 
+  useMemo, 
+  useCallback
 } from 'react';
 import ArticleList from './screens/ArticleList';
 import PublisherList from './screens/PublisherList';
@@ -32,6 +33,7 @@ export default function App() {
   const [ articles, setArticles ] = useState([]);
   const [ pageNumber, setPageNumber ] = useState(1);
   const [ publishersList, setPublishersList ] = useState({});
+  const [ refreshing, setRefreshing ] = useState(false);
 
   const filterForUniqueArticles = arr => {
     const cleaned = [];
@@ -82,80 +84,19 @@ export default function App() {
     setPublishersList(publishers)
   } 
 
-  const handlePress = url => {
-    Linking.canOpenURL(url).then(supported => {
-      if (supported) {
-        Linking.openURL(url);
-      } else {
-        console.log(`Don't know how to open URL: ${url}`);
-      }
-    });
-  };
-
   useEffect(() => {
     getNews()
     getPublishers()
   }, [articles])
 
-  const renderArticleItem = ({ item }) => {
-    if (item === undefined) return
-    return (
-        <Card 
-          wrapperStyle={styles.cardContainer} 
-          title={
-            item.title === undefined 
-            ? '' 
-            : item.title} 
-          image={{ uri: item.urlToImage }}
-        >
-          <View style={styles.row}>
-            <Text style={styles.label}>Source</Text>
-            <Text style={styles.info}>
-              {item.source.name === undefined 
-              ? '' 
-              : item.source.name}
-            </Text>
-          </View>
-          <Text style={styles.content}>
-            {item.content === undefined 
-            ? '' 
-            : item.content}
-          </Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Published</Text>
-            <Text style={styles.info}>
-              {moment(item.publishedAt).format('LLL')}
-            </Text>
-          </View>
-          <Button 
-            containerStyle={styles.button}
-            icon={<Icon />} 
-            title="Read more" 
-            backgroundColor="#03A9F4"
-            onPress={() => item.url === undefined ? '' : handlePress(item.url)}
-          />
-        </Card>
-    );
-  };
 
-  const renderArticleList = useMemo(
-    () => 
-      <FlatList
-        data={articles}
-        renderItem={renderArticleItem}
-        keyExtractor={item => item.title}
-        onEndReached={getNews} 
-        onEndReachedThreshold={1}
-        ListFooterComponent={
-          lastPageReached 
-          ? <Text>No more articles</Text> 
-          : <ActivityIndicator
-              size="large"
-              loading={loading}
-          />
-        }
-      />
-    , [articles]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    setArticles([])
+    setPageNumber(1)
+    setLastPageReached(false)
+    setRefreshing(false)
+  }, [refreshing])
 
 
   if (loading) {
@@ -177,8 +118,6 @@ export default function App() {
     );
   }
 
-
-
   return (
     <NavigationContainer>
       <Tab.Navigator
@@ -191,7 +130,15 @@ export default function App() {
           name="ArticleList" 
           component={ArticleList} 
           options={{title:"Articles List", headerTitleAlign: "center"}}
-          initialParams={{length: articles.length, renderArticleList: renderArticleList}}
+          initialParams={{
+            length: articles.length, 
+            articles: articles, 
+            loading: loading, 
+            getNews: getNews, 
+            lastPageReached: lastPageReached,
+            refreshing: refreshing,
+            onRefresh: onRefresh,
+          }}
         />
         <Tab.Screen 
           name="PublishersList" 
